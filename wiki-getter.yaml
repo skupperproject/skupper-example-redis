@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wiki-getter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      application: wiki-getter
+  template:
+    metadata:
+      labels:
+        application: wiki-getter
+        name: wiki-getter
+        app.kubernetes.io/part-of: wiki-getter
+    spec:
+      containers:
+      - name: server
+        image: quay.io/skupper/wiki-getter
+        imagePullPolicy: Always
+        ports:
+          - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wiki-getter
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    application: wiki-getter
+  type: ClusterIP
