@@ -26,12 +26,12 @@ across cloud providers, data centers, and edge sites.
 * [Step 8: Observe the set of Redis server and Sentinel services in each Site](#step-8-observe-the-set-of-redis-server-and-sentinel-services-in-each-site)
 * [Step 9: Create Redis services on podman site](#step-9-create-redis-services-on-podman-site)
 * [Step 10: Use Redis command line interface to verify redis-server-north is master](#step-10-use-redis-command-line-interface-to-verify-redis-server-north-is-master)
-* [Step 11: Use Redis command line interface to verify redis-server-west is slave](#step-11-use-redis-command-line-interface-to-verify-redis-server-west-is-slave)
-* [Step 12: Use Redis command line interface to verify redis-server-east is slave](#step-12-use-redis-command-line-interface-to-verify-redis-server-east-is-slave)
-* [Step 13: Use Redis command line interface to verify redis-sentinel-north primary status](#step-13-use-redis-command-line-interface-to-verify-redis-sentinel-north-primary-status)
-* [Step 14: Use Redis command line to measure latency of servers from podman site](#step-14-use-redis-command-line-to-measure-latency-of-servers-from-podman-site)
-* [Step 15: Deploy the wiki-getter service](#step-15-deploy-the-wiki-getter-service)
-* [Step 16: Get Wiki content](#step-16-get-wiki-content)
+* [Step 11: Use Redis command line interface to verify sentinel redis-server-north master status](#step-11-use-redis-command-line-interface-to-verify-sentinel-redis-server-north-master-status)
+* [Step 12: Deploy the wiki-getter service](#step-12-deploy-the-wiki-getter-service)
+* [Step 13: Get Wiki content](#step-13-get-wiki-content)
+* [Step 14: Force Sentinel failover](#step-14-force-sentinel-failover)
+* [Step 15: Verify Wiki content](#step-15-verify-wiki-content)
+* [Step 16: Use Redis command line to measure latency of servers from podman site](#step-16-use-redis-command-line-to-measure-latency-of-servers-from-podman-site)
 * [Step 17: Cleaning up](#step-17-cleaning-up)
 * [Summary](#summary)
 * [Next steps](#next-steps)
@@ -42,8 +42,8 @@ across cloud providers, data centers, and edge sites.
 This example deploys a simple highly available Redis architecture with
 Sentinel across multiple Kubernetes clusters using Skupper.
 
-In addition to the Redis server and Redis Sentinel, the example
-contains one service:
+In addition to the Redis Server and Redis Sentinel, the example
+contains an additional service:
 
 * A wiki-getter service that exposes an `/api/search?query=` endpoint. 
   The server returns the result from the Redis cache if present otherwise
@@ -215,8 +215,8 @@ _Sample output:_
 
 ~~~ console
 $ skupper init --site-name podman-west --ingress none
-It is recommended to enable lingering for yourname, otherwise Skupper may not start on boot.
-Skupper is now installed for user 'yourname'.  Use 'skupper status' to get more information.
+It is recommended to enable lingering for currentuser, otherwise Skupper may not start on boot.
+Skupper is now installed for user 'currentuser'.  Use 'skupper status' to get more information.
 ~~~
 
 As you move through the steps below, you can use `skupper status` at
@@ -241,9 +241,9 @@ that generated it.
 token can link to your site.  Make sure that only those you trust
 have access to it.
 
-First, use `skupper token create` in east to generate the
-token.  Then, use `skupper link create` in east, north and podman-west to link the
-sites.
+In this example, for the purpose of availability, all sites are linked together.
+This is not a requirement as service communications works across intermediate sites
+by way of a shortest path traversal.
 
 _**West:**_
 
@@ -537,53 +537,7 @@ $ 127.0.0.1:6379> ROLE
       3) "1531796"
 ~~~
 
-## Step 11: Use Redis command line interface to verify redis-server-west is slave
-
-Some preamble here
-
-_**Podman West:**_
-
-~~~ shell
-redis-cli -p 6380
-127.0.0.1:6380> ROLE
-127.0.0.1:6380> exit
-~~~
-
-_Sample output:_
-
-~~~ console
-$ 127.0.0.1:6380> ROLE
-1) "slave"
-2) "redis-server-north"
-3) (integer) 6379
-4) "connected"
-5) (integer) 1766858
-~~~
-
-## Step 12: Use Redis command line interface to verify redis-server-east is slave
-
-Some preamble here
-
-_**Podman West:**_
-
-~~~ shell
-redis-cli -p 6381
-127.0.0.1:6381> ROLE
-127.0.0.1:6381> exit
-~~~
-
-_Sample output:_
-
-~~~ console
-$ 127.0.0.1:6381> ROLE
-1) "slave"
-2) "redis-server-north"
-3) (integer) 6379
-4) "connected"
-5) (integer) 1869714
-~~~
-
-## Step 13: Use Redis command line interface to verify redis-sentinel-north primary status
+## Step 11: Use Redis command line interface to verify sentinel redis-server-north master status
 
 Some preamble here
 
@@ -591,54 +545,19 @@ _**Podman West:**_
 
 ~~~ shell
 redis-cli -p 26379
-127.0.0.1:26379> sentinel master redis-skupper
+127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
 127.0.0.1:26379> exit
 ~~~
 
 _Sample output:_
 
 ~~~ console
-$ 127.0.0.1:26379> sentinel master redis-skupper
-1) "name"
-2) "redis-skupper"
-3) "ip"
-4) "redis-server-north"
-5) "port"
-6) "6379"
-7) "runid"
-8) "b6886088db5911a94403a5d54306e3afc7a135f7"
-9) "flags"
-10) "master"
-...
+$ 127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
+1) "redis-server-north"
+2) "6379"
 ~~~
 
-## Step 14: Use Redis command line to measure latency of servers from podman site
-
-Some preamble here (continuos or sample period) in milliseconds min, max, average, samples
-Note, this example used three public cloud locations (DC, London, Dallas).
-
-_**Podman West:**_
-
-~~~ shell
-redis-cli --latency -p 6379 --raw
-redis-cli --latency -p 6380 --raw
-redis-cli --latency -p 6381 --raw
-~~~
-
-_Sample output:_
-
-~~~ console
-$ redis-cli --latency -p 6379 --raw
-62 88 68.85 13
-
-$ redis-cli --latency -p 6380 --raw
-28 38 32.88 24
-
-$ redis-cli --latency -p 6381 --raw
-110 280 141.43 7
-~~~
-
-## Step 15: Deploy the wiki-getter service
+## Step 12: Deploy the wiki-getter service
 
 We will choose the north namespace to create a wiki-getter deployment
 and service. The client in the service will determine the 
@@ -659,7 +578,7 @@ deployment.apps/wiki-getter created
 service/wiki-getter created
 ~~~
 
-## Step 16: Get Wiki content
+## Step 13: Get Wiki content
 
 Use `curl` to send a request to querty the Wikipedia API via the 
 wiki-getter service. Note the *X-Response-Time* header for the initial
@@ -698,6 +617,85 @@ X-Response-Time: 9.760ms
 Date: Tue, 26 Mar 2024 20:10:29 GMT
 Connection: keep-alive
 Keep-Alive: timeout=5
+~~~
+
+## Step 14: Force Sentinel failover
+
+Using the Sentinel command, force a failover as if the master was not reachable. This
+will result in the promotion of one of the slave Redis servers to master role.
+
+_**Podman West:**_
+
+~~~ shell
+redis-cli -p 26379
+127.0.0.1:26379> sentinel failover redis-skupper
+127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
+127.0.0.1:26379> exit
+~~~
+
+_Sample output:_
+
+~~~ console
+$ 127.0.0.1:26379> sentinel failover redis-skupper
+OK
+(0.66s)
+
+$ 127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
+1) "redis-server-west"
+2) "6379"
+~~~
+
+Note that `redis-server-east` may have alternatively been elected master role.
+
+## Step 15: Verify Wiki content
+
+Check that cached content is correctly returned from new master.
+
+_**North:**_
+
+~~~ shell
+kubectl exec -it deployment/wiki-getter -- curl -f -I --head http://wiki-getter:8080/api/search?query=Boston
+~~~
+
+_Sample output:_
+
+~~~ console
+$ kubectl exec -it deployment/wiki-getter -- curl -f -I --head http://wiki-getter:8080/api/search?query=Boston
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 133239
+ETag: W/"20877-3I5fv/NQC7Ldrjjbw7IHhqHGmMA"
+X-Response-Time: 9.760ms
+Date: Tue, 26 Mar 2024 20:10:29 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+~~~
+
+## Step 16: Use Redis command line to measure latency of servers from podman site
+
+Some preamble here (continuos or sample period) in milliseconds min, max, average, samples
+Note, this example used three public cloud locations (DC, London, Dallas).
+
+_**Podman West:**_
+
+~~~ shell
+redis-cli --latency -p 6379 --raw
+redis-cli --latency -p 6380 --raw
+redis-cli --latency -p 6381 --raw
+~~~
+
+_Sample output:_
+
+~~~ console
+$ redis-cli --latency -p 6379 --raw
+62 88 68.85 13
+
+$ redis-cli --latency -p 6380 --raw
+28 38 32.88 24
+
+$ redis-cli --latency -p 6381 --raw
+110 280 141.43 7
 ~~~
 
 ## Step 17: Cleaning up

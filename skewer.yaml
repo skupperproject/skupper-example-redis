@@ -4,8 +4,8 @@ overview: |
   This example deploys a simple highly available Redis architecture with
   Sentinel across multiple Kubernetes clusters using Skupper.
 
-  In addition to the Redis server and Redis Sentinel, the example
-  contains one service:
+  In addition to the Redis Server and Redis Sentinel, the example
+  contains an additional service:
 
   * A wiki-getter service that exposes an `/api/search?query=` endpoint. 
     The server returns the result from the Redis cache if present otherwise
@@ -83,8 +83,8 @@ steps:
       podman-west:
         - run: skupper init --site-name podman-west --ingress none
           output: |
-            It is recommended to enable lingering for yourname, otherwise Skupper may not start on boot.
-            Skupper is now installed for user 'yourname'.  Use 'skupper status' to get more information.
+            It is recommended to enable lingering for currentuser, otherwise Skupper may not start on boot.
+            Skupper is now installed for user 'currentuser'.  Use 'skupper status' to get more information.
     postamble: |
       As you move through the steps below, you can use `skupper status` at
       any time to check your progress.
@@ -107,9 +107,9 @@ steps:
       token can link to your site.  Make sure that only those you trust
       have access to it.
 
-      First, use `skupper token create` in east to generate the
-      token.  Then, use `skupper link create` in east, north and podman-west to link the
-      sites.
+      In this example, for the purpose of availability, all sites are linked together.
+      This is not a requirement as service communications works across intermediate sites
+      by way of a shortest path traversal.
     commands:
       west:
         - run: skupper token create ~/west.token --uses 3
@@ -271,69 +271,17 @@ steps:
                   2) "6379"
                   3) "1531796"
         - run: 127.0.0.1:6379> exit
-  - title: Use Redis command line interface to verify redis-server-west is slave
-    preamble: |
-      Some preamble here
-    commands: 
-      podman-west:
-        - run: redis-cli -p 6380
-        - run: 127.0.0.1:6380> ROLE
-          output: |
-            1) "slave"
-            2) "redis-server-north"
-            3) (integer) 6379
-            4) "connected"
-            5) (integer) 1766858
-        - run: 127.0.0.1:6380> exit        
-  - title: Use Redis command line interface to verify redis-server-east is slave
-    preamble: |
-      Some preamble here
-    commands: 
-      podman-west:
-        - run: redis-cli -p 6381
-        - run: 127.0.0.1:6381> ROLE
-          output: |
-            1) "slave"
-            2) "redis-server-north"
-            3) (integer) 6379
-            4) "connected"
-            5) (integer) 1869714
-        - run: 127.0.0.1:6381> exit
-  - title: Use Redis command line interface to verify redis-sentinel-north primary status
+  - title: Use Redis command line interface to verify sentinel redis-server-north master status
     preamble: |
       Some preamble here
     commands: 
       podman-west:
         - run: redis-cli -p 26379
-        - run: 127.0.0.1:26379> sentinel master redis-skupper
+        - run: 127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
           output: |
-           1) "name"
-           2) "redis-skupper"
-           3) "ip"
-           4) "redis-server-north"
-           5) "port"
-           6) "6379"
-           7) "runid"
-           8) "b6886088db5911a94403a5d54306e3afc7a135f7"
-           9) "flags"
-           10) "master"
-           ...
+           1) "redis-server-north"
+           2) "6379"
         - run: 127.0.0.1:26379> exit
-  - title: Use Redis command line to measure latency of servers from podman site
-    preamble: |
-      Some preamble here (continuos or sample period) in milliseconds min, max, average, samples
-      Note, this example used three public cloud locations (DC, London, Dallas). 
-    commands: 
-      podman-west:
-        - run: redis-cli --latency -p 6379 --raw
-          output: |
-            62 88 68.85 13
-        - run: redis-cli --latency -p 6380 --raw
-          output: |
-            28 38 32.88 24
-        - run: redis-cli --latency -p 6381 --raw
-          output: |
-            110 280 141.43 7
   - title: Deploy the wiki-getter service
     preamble: |
       We will choose the north namespace to create a wiki-getter deployment
@@ -377,6 +325,55 @@ steps:
             Date: Tue, 26 Mar 2024 20:10:29 GMT
             Connection: keep-alive
             Keep-Alive: timeout=5
+  - title: Force Sentinel failover
+    preamble: |
+      Using the Sentinel command, force a failover as if the master was not reachable. This
+      will result in the promotion of one of the slave Redis servers to master role.
+    commands:
+      podman-west:
+        - run: redis-cli -p 26379
+        - run: 127.0.0.1:26379> sentinel failover redis-skupper
+          output: |
+            OK
+            (0.66s)
+        - run: 127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
+          output: |
+            1) "redis-server-west"
+            2) "6379"
+        - run: 127.0.0.1:26379> exit
+    postamble: |
+      Note that `redis-server-east` may have alternatively been elected master role.
+  - title: Verify Wiki content
+    preamble: |
+      Check that cached content is correctly returned from new master.
+    commands:
+      north:
+        - run:  kubectl exec -it deployment/wiki-getter -- curl -f -I --head http://wiki-getter:8080/api/search?query=Boston
+          output: |
+            HTTP/1.1 200 OK
+            X-Powered-By: Express
+            Content-Type: application/json; charset=utf-8
+            Content-Length: 133239
+            ETag: W/"20877-3I5fv/NQC7Ldrjjbw7IHhqHGmMA"
+            X-Response-Time: 9.760ms
+            Date: Tue, 26 Mar 2024 20:10:29 GMT
+            Connection: keep-alive
+            Keep-Alive: timeout=5
+  - title: Use Redis command line to measure latency of servers from podman site
+    preamble: |
+      Some preamble here (continuos or sample period) in milliseconds min, max, average, samples
+      Note, this example used three public cloud locations (DC, London, Dallas).
+    commands:
+      podman-west:
+        - run: redis-cli --latency -p 6379 --raw
+          output: |
+            62 88 68.85 13
+        - run: redis-cli --latency -p 6380 --raw
+          output: |
+            28 38 32.88 24
+        - run: redis-cli --latency -p 6381 --raw
+          output: |
+            110 280 141.43 7
   - title: Cleaning up
     preamble: |
       To remove Skupper and other resource from this exercise, use the
