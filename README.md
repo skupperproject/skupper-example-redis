@@ -2,8 +2,6 @@
 
 # Redis Multicloud High Availability using Skupper
 
-[![main](https://github.com/ajssmith/skupper-example-redis-multicloud.git/actions/workflows/main.yaml/badge.svg)](https://github.com/ajssmith/skupper-example-redis-multicloud.git/actions/workflows/main.yaml)
-
 #### Secure Redis servers across multiple distributed Kubernetes clusters
 
 This example is part of a [suite of examples][examples] showing the
@@ -25,14 +23,13 @@ across cloud providers, data centers, and edge sites.
 * [Step 7: Expose Redis Server and Sentinel to Application Network](#step-7-expose-redis-server-and-sentinel-to-application-network)
 * [Step 8: Observe the set of Redis server and Sentinel services in each Site](#step-8-observe-the-set-of-redis-server-and-sentinel-services-in-each-site)
 * [Step 9: Create Redis services on podman site](#step-9-create-redis-services-on-podman-site)
-* [Step 10: Use Redis command line interface to verify redis-server-north is master](#step-10-use-redis-command-line-interface-to-verify-redis-server-north-is-master)
-* [Step 11: Use Redis command line interface to verify sentinel redis-server-north master status](#step-11-use-redis-command-line-interface-to-verify-sentinel-redis-server-north-master-status)
-* [Step 12: Deploy the wiki-getter service](#step-12-deploy-the-wiki-getter-service)
-* [Step 13: Get Wiki content](#step-13-get-wiki-content)
-* [Step 14: Force Sentinel failover](#step-14-force-sentinel-failover)
-* [Step 15: Verify Wiki content](#step-15-verify-wiki-content)
-* [Step 16: Use Redis command line to measure latency of servers from podman site](#step-16-use-redis-command-line-to-measure-latency-of-servers-from-podman-site)
-* [Step 17: Cleaning up](#step-17-cleaning-up)
+* [Step 10: Use Redis command line interface to verify master status](#step-10-use-redis-command-line-interface-to-verify-master-status)
+* [Step 11: Deploy the wiki-getter service](#step-11-deploy-the-wiki-getter-service)
+* [Step 12: Get Wiki content](#step-12-get-wiki-content)
+* [Step 13: Force Sentinel failover](#step-13-force-sentinel-failover)
+* [Step 14: Verify Wiki content](#step-14-verify-wiki-content)
+* [Step 15: Use Redis command line to measure latency of servers from each site](#step-15-use-redis-command-line-to-measure-latency-of-servers-from-each-site)
+* [Step 16: Cleaning up](#step-16-cleaning-up)
 * [Summary](#summary)
 * [Next steps](#next-steps)
 * [About this example](#about-this-example)
@@ -270,10 +267,6 @@ _Sample output:_
 ~~~ console
 $ skupper token create ~/east.token --uses 2
 Token written to ~/east.token
-
-$ skupper link create ~/west.token
-Site configured to link to https://10.105.193.154:8081/ed9c37f6-d78a-11ec-a8c7-04421a4c5042 (name=link1)
-Check the status of the link using 'skupper link status'.
 ~~~
 
 _**North:**_
@@ -282,14 +275,6 @@ _**North:**_
 skupper token create ~/north.token --uses 1
 skupper link create ~/west.token
 skupper link create ~/east.token
-~~~
-
-_Sample output:_
-
-~~~ console
-$ skupper link create ~/east.token
-Site configured to link to https://10.105.193.154:8081/ed9c37f6-d78a-11ec-a8c7-04421a4c5042 (name=link1)
-Check the status of the link using 'skupper link status'.
 ~~~
 
 _**Podman West:**_
@@ -511,9 +496,10 @@ Services exposed through Skupper:
          ╰─ ip: * - ports: 6380 -> 6379
 ~~~
 
-## Step 10: Use Redis command line interface to verify redis-server-north is master
+## Step 10: Use Redis command line interface to verify master status
 
-Some preamble here
+Running the `redis-cli` from the podman-west site, attach to the Redis server
+and Sentinel to verfy that the redis-server-north is master.
 
 _**Podman West:**_
 
@@ -521,6 +507,9 @@ _**Podman West:**_
 redis-cli -p 6379
 127.0.0.1:6379> ROLE
 127.0.0.1:6379> exit
+redis-cli -p 26379
+127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
+127.0.0.1:26379> exit
 ~~~
 
 _Sample output:_
@@ -535,29 +524,13 @@ $ 127.0.0.1:6379> ROLE
    2) 1) "redis-server-east"
       2) "6379"
       3) "1531796"
-~~~
 
-## Step 11: Use Redis command line interface to verify sentinel redis-server-north master status
-
-Some preamble here
-
-_**Podman West:**_
-
-~~~ shell
-redis-cli -p 26379
-127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
-127.0.0.1:26379> exit
-~~~
-
-_Sample output:_
-
-~~~ console
 $ 127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
 1) "redis-server-north"
 2) "6379"
 ~~~
 
-## Step 12: Deploy the wiki-getter service
+## Step 11: Deploy the wiki-getter service
 
 We will choose the north namespace to create a wiki-getter deployment
 and service. The client in the service will determine the 
@@ -578,7 +551,7 @@ deployment.apps/wiki-getter created
 service/wiki-getter created
 ~~~
 
-## Step 13: Get Wiki content
+## Step 12: Get Wiki content
 
 Use `curl` to send a request to querty the Wikipedia API via the 
 wiki-getter service. Note the *X-Response-Time* header for the initial
@@ -600,10 +573,10 @@ $ kubectl exec -it deployment/wiki-getter -- curl -f -I --head http://wiki-gette
 HTTP/1.1 200 OK
 X-Powered-By: Express
 Content-Type: application/json; charset=utf-8
-Content-Length: 133241
-ETag: W/"20879-1kpFc2Ex5RW7UtS5dMCi1bM6NCA"
-X-Response-Time: 2792.965ms
-Date: Tue, 26 Mar 2024 20:09:13 GMT
+Content-Length: 132099
+ETag: W/"20403-PfBW245Yreh1Gm27jHeiM01Wox8"
+X-Response-Time: 1545.706ms
+Date: Fri, 29 Mar 2024 12:48:53 GMT
 Connection: keep-alive
 Keep-Alive: timeout=5
 
@@ -611,15 +584,15 @@ $ kubectl exec -it deployment/wiki-getter -- curl -f -I --head http://wiki-gette
 HTTP/1.1 200 OK
 X-Powered-By: Express
 Content-Type: application/json; charset=utf-8
-Content-Length: 133239
-ETag: W/"20877-3I5fv/NQC7Ldrjjbw7IHhqHGmMA"
-X-Response-Time: 9.760ms
-Date: Tue, 26 Mar 2024 20:10:29 GMT
+Content-Length: 132097
+ETag: W/"20401-7u+hiY6DPz+D2DHbukm0QE/L82s"
+X-Response-Time: 5.847ms
+Date: Fri, 29 Mar 2024 12:48:58 GMT
 Connection: keep-alive
 Keep-Alive: timeout=5
 ~~~
 
-## Step 14: Force Sentinel failover
+## Step 13: Force Sentinel failover
 
 Using the Sentinel command, force a failover as if the master was not reachable. This
 will result in the promotion of one of the slave Redis servers to master role.
@@ -647,7 +620,7 @@ $ 127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
 
 Note that `redis-server-east` may have alternatively been elected master role.
 
-## Step 15: Verify Wiki content
+## Step 14: Verify Wiki content
 
 Check that cached content is correctly returned from new master.
 
@@ -664,18 +637,82 @@ $ kubectl exec -it deployment/wiki-getter -- curl -f -I --head http://wiki-gette
 HTTP/1.1 200 OK
 X-Powered-By: Express
 Content-Type: application/json; charset=utf-8
-Content-Length: 133239
-ETag: W/"20877-3I5fv/NQC7Ldrjjbw7IHhqHGmMA"
-X-Response-Time: 9.760ms
-Date: Tue, 26 Mar 2024 20:10:29 GMT
+Content-Length: 132097
+ETag: W/"20401-7u+hiY6DPz+D2DHbukm0QE/L82s"
+X-Response-Time: 152.056ms
+Date: Fri, 29 Mar 2024 12:50:45 GMT
 Connection: keep-alive
 Keep-Alive: timeout=5
 ~~~
 
-## Step 16: Use Redis command line to measure latency of servers from podman site
+## Step 15: Use Redis command line to measure latency of servers from each site
 
-Some preamble here (continuos or sample period) in milliseconds min, max, average, samples
-Note, this example used three public cloud locations (DC, London, Dallas).
+To understand latency in a true multicloud scenario, the redis-cli can be used to
+measure the latency of a Redis server in milliseconds from any application network
+site.
+
+_**West:**_
+
+~~~ shell
+kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-west -p 6379 --raw
+kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-east -p 6379 --raw
+kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-north -p 6379 --raw
+~~~
+
+_Sample output:_
+
+~~~ console
+$ kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-west -p 6379 --raw
+0 10 1.41 88
+
+$ kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-east -p 6379 --raw
+76 254 96.40 10
+
+$ kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-north -p 6379 --raw
+33 104 44.00 19
+~~~
+
+_**East:**_
+
+~~~ shell
+kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-west -p 6379 --raw
+kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-east -p 6379 --raw
+kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-north -p 6379 --raw
+~~~
+
+_Sample output:_
+
+~~~ console
+$ kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-west -p 6379 --raw
+79 110 85.45 11
+
+$ kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-east -p 6379 --raw
+0 26 1.28 89
+
+$ kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-north -p 6379 --raw
+113 358 149.14 7
+~~~
+
+_**North:**_
+
+~~~ shell
+kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-west -p 6379 --raw
+kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-east -p 6379 --raw
+kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-north -p 6379 --raw
+~~~
+
+_Sample output:_
+
+~~~ console
+$ kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-west -p 6379 --raw
+33 103 38.71 21
+
+$ kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-east -p 6379 --raw
+115 161 125.25 8
+
+$ kubectl exec -it deployment/redis-server -- redis-cli --latency -h redis-server-north -p 6379 --raw
+0 19 0.88 94
+~~~
 
 _**Podman West:**_
 
@@ -698,7 +735,10 @@ $ redis-cli --latency -p 6381 --raw
 110 280 141.43 7
 ~~~
 
-## Step 17: Cleaning up
+The sample period output is latency min, max, average over the number of samples. Note, that the sample
+outputs provided are actual measures across three public cloud locations (Washington DC, London, and Dallas)
+
+## Step 16: Cleaning up
 
 To remove Skupper and other resource from this exercise, use the
 following commands.
