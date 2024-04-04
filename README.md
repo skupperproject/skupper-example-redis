@@ -39,12 +39,12 @@ across cloud providers, data centers, and edge sites.
 This example deploys a simple highly available Redis architecture with
 Sentinel across multiple Kubernetes clusters using Skupper.
 
-In addition to the Redis Server and Redis Sentinel, the example
-contains an additional service:
+In addition to the Redis Server and Sentinel, the example contains
+an additional service:
 
 * A wiki-getter service that exposes an `/api/search?query=` endpoint. 
   The server returns the result from the Redis cache if present otherwise
-  it will retrieve the query via the wiki api and cache the content via
+  it will retrieve the query via the `wiki api` and cache the content via
   the Redis primary server.
 
 With Skupper, you can place the Redis primary server in one cluster and 
@@ -292,7 +292,15 @@ creation.
 
 ## Step 6: Deploy Redis Server and Sentinel
 
-We have deployment yamls, detail what is in it, mention init con
+A _yaml_ file defines the resources for the Redis deployment in each
+site. Each contains:
+
+- A Server deployment resource
+- A Sentinel deployment resource
+- A Redis config map for configuration
+
+** Note ** the `redis-north.yaml` file designates the server to be
+primary while the other sites are designated as replica sites to north.
 
 _**West:**_
 
@@ -339,7 +347,10 @@ configmap/redis created
 deployment.apps/redis-sentinel created
 ~~~
 
-Note well that container is waiting on init dependencies
+** Note ** the Sentinel deployments in each site use an init container
+that waits for the service definitions of the Redis servers in all
+sites to exist before execution. This will be satisfied by the next
+step.
 
 ## Step 7: Expose Redis Server and Sentinel to Application Network
 
@@ -773,17 +784,17 @@ skupper delete
 
 ## Summary
 
-This example locates the redis server and sentinel services in different
+This example locates the Redis Server and Sentinel services in different
 namespaces, on different clusters.  Ordinarily, this means that they
 have no way to communicate unless they are exposed to the public
 internet.
 
 Introducing Skupper into each namespace allows us to create a virtual
-application network that can connect redis services in different clusters.
+application network that can connect Redis services in different clusters.
 Any service exposed on the application network is represented as a
 local service in all of the linked namespaces.
 
-The redis primary server is located in `north`, but the redis replica 
+The Redis primary server is located in `north`, but the Redis replica
 services in `west` and `east` can "see" it as if it were local.
 Redis replica operations take place by service name and Skupper
 forwards the requests to the namespace where the corresponding server
