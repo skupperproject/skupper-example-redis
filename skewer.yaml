@@ -114,16 +114,16 @@ steps:
     commands: 
       west:
         - await_resource: deployment/redis-server
-        - run: kubectl apply -f ./declarative/west/listener-west.yaml
-        - run: kubectl apply -f ./declarative/west/connector-west.yaml        
+        - run: kubectl apply -f ./west-crs/listener-west.yaml
+        - run: kubectl apply -f ./west-crs/connector-west.yaml        
       east:
         - await_resource: deployment/redis-server
-        - run: kubectl apply -f ./declarative/east/listener-east.yaml
-        - run: kubectl apply -f ./declarative/east/connector-east.yaml        
+        - run: kubectl apply -f ./east-crs/listener-east.yaml
+        - run: kubectl apply -f ./east-crs/connector-east.yaml        
       north:
         - await_resource: deployment/redis-server
-        - run: kubectl apply -f ./declarative/north/listener-north.yaml
-        - run: kubectl apply -f ./declarative/north/connector-north.yaml
+        - run: kubectl apply -f ./north-crs/listener-north.yaml
+        - run: kubectl apply -f ./north-crs/connector-north.yaml
 
   - title: Generate a link custom resource to connect your sites
     preamble: |

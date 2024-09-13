@@ -238,22 +238,22 @@ sentinel deployments in each namespace
 _**West:**_
 
 ~~~ shell
-kubectl apply -f ./declarative/west/listener-west.yaml
-kubectl apply -f ./declarative/west/connector-west.yaml
+kubectl apply -f ./west-crs/listener-west.yaml
+kubectl apply -f ./west-crs/connector-west.yaml
 ~~~
 
 _**East:**_
 
 ~~~ shell
-kubectl apply -f ./declarative/east/listener-east.yaml
-kubectl apply -f ./declarative/east/connector-east.yaml
+kubectl apply -f ./east-crs/listener-east.yaml
+kubectl apply -f ./east-crs/connector-east.yaml
 ~~~
 
 _**North:**_
 
 ~~~ shell
-kubectl apply -f ./declarative/north/listener-north.yaml
-kubectl apply -f ./declarative/north/connector-north.yaml
+kubectl apply -f ./north-crs/listener-north.yaml
+kubectl apply -f ./north-crs/connector-north.yaml
 ~~~
 
 ## Step 8: Generate a link custom resource to connect your sites
