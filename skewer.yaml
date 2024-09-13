@@ -45,97 +45,45 @@ steps:
   - standard: general/install_the_skupper_command_line_tool
   - standard: kubernetes/set_up_your_kubernetes_cluster
   - standard: podman/set_up_your_podman_environment
+  - title: Install the Skupper controller
+    commands:
+      "west":
+        - run: kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_access_grant_crd.yaml
+        - run: kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_access_token_crd.yaml
+        - run: kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_attached_connector_anchor_crd.yaml
+        - run: kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_attached_connector_crd.yaml
+        - run: kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_certificate_crd.yaml
+        - run: kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_connector_crd.yaml
+        - run: kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_link_crd.yaml
+        - run: kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_listener_crd.yaml
+        - run: kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_router_access_crd.yaml
+        - run: kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_secured_access_crd.yaml
+        - run: kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_site_crd.yaml
+        - run: kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/deploy_cluster_scope.yaml
   - title: Create your sites
     preamble: |
       A Skupper _site_ is a location where components of your
       application are running.  Sites are linked together to form a
       Skupper network for your application.
 
-      In Kubernetes, use `skupper init` to create a site.  This
-      deploys the Skupper router and controller.  Then use `skupper
-      status` to see the outcome.
-
-      In Podman, use `skupper init` with the option `--ingress none`
-      and use `skupper status` to see the result.
+      Use the `kubectl apply` command to declaratively create sites
+      in the kubernetes namespaces. This deploys the Skupper router. 
+      Then use `kubectl get site` to see the outcome.
 
       **Note:** If you are using Minikube, you need to [start minikube
-      tunnel][minikube-tunnel] before you run `skupper init`.
+      tunnel][minikube-tunnel] before you run `kubectl apply`.
 
       [minikube-tunnel]: https://skupper.io/start/minikube.html#running-minikube-tunnel
     commands:
       west:
-        - run: skupper init --site-name west
-          output: |
-            Waiting for LoadBalancer IP or hostname...
-            Waiting for status...
-            Skupper is now installed in namespace 'west'.  Use 'skupper status' to get more information.
+        - run: kubectl apply -f ./west-crs/site-west.yaml
       east:
-        - run: skupper init --site-name east
-          output: |
-            Waiting for LoadBalancer IP or hostname...
-            Waiting for status...
-            Skupper is now installed in namespace 'east'.  Use 'skupper status' to get more information.
+        - run: kubectl apply -f ./east-crs/site-east.yaml
       north:
-        - run: skupper init --site-name north
-          output: |
-            Waiting for LoadBalancer IP or hostname...
-            Waiting for status...
-            Skupper is now installed in namespace 'north'.  Use 'skupper status' to get more information.
-      podman-west:
-        - run: skupper init --site-name podman-west --ingress none
-          output: |
-            It is recommended to enable lingering for currentuser, otherwise Skupper may not start on boot.
-            Skupper is now installed for user 'currentuser'.  Use 'skupper status' to get more information.
+        - run: kubectl apply -f ./north-crs/site-north.yaml
     postamble: |
-      As you move through the steps below, you can use `skupper status` at
-      any time to check your progress.
-  - title: Link your sites
-    preamble: |
-      A Skupper _link_ is a channel for communication between two sites.
-      Links serve as a transport for application connections and
-      requests.
-
-      Creating a link requires use of two `skupper` commands in
-      conjunction, `skupper token create` and `skupper link create`.
-
-      The `skupper token create` command generates a secret token that
-      signifies permission to create a link.  The token also carries the
-      link details.  Then, in a remote site, The `skupper link
-      create` command uses the token to create a link to the site
-      that generated it.
-
-      **Note:** The link token is truly a *secret*.  Anyone who has the
-      token can link to your site.  Make sure that only those you trust
-      have access to it.
-
-      In this example, for the purpose of availability, all sites are linked together.
-      This is not a requirement as service communications works across intermediate sites
-      by way of a shortest path traversal.
-    commands:
-      west:
-        - run: skupper token create ~/west.token --uses 3
-          output: Token written to ~/west.token
-      east:
-        - run: skupper token create ~/east.token --uses 2
-          output: Token written to ~/east.token        
-        - run: skupper link create ~/west.token
-        - run: skupper link status --wait 60
-          apply: test
-      north:
-        - run: skupper token create ~/north.token --uses 1
-        - run: skupper link create ~/west.token
-        - run: skupper link create ~/east.token
-        - run: skupper link status --wait 60
-          apply: test
-      podman-west:
-        - run: skupper link create ~/west.token
-        - run: skupper link create ~/east.token
-        - run: skupper link create ~/north.token
-    postamble: |
-      If your terminal sessions are on different machines, you may need
-      to use `scp` or a similar tool to transfer the token securely.  By
-      default, tokens expire after a single use or 15 minutes after
-      creation.
+      As you move through the steps below, you can use `kubectl get` at
+      any time on a resource to check your progress.
   - title: Deploy Redis Server and Sentinel
     preamble: |
       A _yaml_ file defines the resources for the Redis deployment in each
@@ -149,23 +97,11 @@ steps:
       primary while the other sites are designated as replica sites to north.
     commands: 
       west:
-        - run: kubectl apply -f redis-west.yaml
-          output: |
-            deployment.apps/redis-server created
-            configmap/redis created
-            deployment.apps/redis-sentinel created
+        - run: kubectl apply -f ./west-crs/redis-west.yaml
       east:
-        - run: kubectl apply -f redis-east.yaml
-          output: |
-            deployment.apps/redis-server created
-            configmap/redis created
-            deployment.apps/redis-sentinel created
+        - run: kubectl apply -f ./east-crs/redis-east.yaml
       north:
-        - run: kubectl apply -f redis-north.yaml
-          output: |
-            deployment.apps/redis-server created
-            configmap/redis created
-            deployment.apps/redis-sentinel created        
+        - run: kubectl apply -f ./north-crs/redis-north.yaml
     postamble: |
       ** Note ** the Sentinel deployments in each site use an init container
       that waits for the service definitions of the Redis servers in all
@@ -173,96 +109,45 @@ steps:
       step.
   - title: Expose Redis Server and Sentinel to Application Network
     preamble: |
-      We will skupper expose the server and sentinel deployments in each namespace
+      We will create links and connectors in the sites to expose the server and 
+      sentinel deployments in each namespace
     commands: 
       west:
         - await_resource: deployment/redis-server
-        - run: skupper expose deployment redis-server --address redis-server-west
-          output: |
-            deployment redis-server exposed as redis-server-west
-        - run: skupper expose deployment redis-sentinel --address redis-sentinel-west
-          output: |
-            deployment redis-sentinel exposed as redis-sentinel-west
+        - run: kubectl apply -f ./declarative/west/listener-west.yaml
+        - run: kubectl apply -f ./declarative/west/connector-west.yaml        
       east:
         - await_resource: deployment/redis-server
-        - run: skupper expose deployment redis-server --address redis-server-east
-          output: |
-            deployment redis-server exposed as redis-server-east
-        - run: skupper expose deployment redis-sentinel --address redis-sentinel-east
-          output: |
-            deployment redis-sentinel exposed as redis-sentinel-east      
+        - run: kubectl apply -f ./declarative/east/listener-east.yaml
+        - run: kubectl apply -f ./declarative/east/connector-east.yaml        
       north:
         - await_resource: deployment/redis-server
-        - run: skupper expose deployment redis-server --address redis-server-north
-          output: |
-            deployment redis-server exposed as redis-server-north
-        - run: skupper expose deployment redis-sentinel --address redis-sentinel-north
-          output: |
-            deployment redis-sentinel exposed as redis-sentinel-north
-  - title: Observe the set of Redis server and Sentinel services in each Site
-    commands:
-      west: 
-        - run: kubectl get services
-          output: |
-            NAME                   TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                        AGE
-            redis-sentinel-east    ClusterIP   172.21.112.88    <none>        26379/TCP                      3m37s
-            redis-sentinel-north   ClusterIP   172.21.67.12     <none>        26379/TCP                      3m35s
-            redis-sentinel-west    ClusterIP   172.21.6.3       <none>        26379/TCP                      9m4s
-            redis-server-east      ClusterIP   172.21.241.21    <none>        6379/TCP                       3m45s
-            redis-server-north     ClusterIP   172.21.194.72    <none>        6379/TCP                       3m42s
-            redis-server-west      ClusterIP   172.21.236.8     <none>        6379/TCP                       9m8s
-      east: 
-        - run: kubectl get services
-          output: |
-            NAME                   TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                        AGE
-            redis-sentinel-east    ClusterIP   172.21.243.22    <none>        26379/TCP                      5m10s
-            redis-sentinel-north   ClusterIP   172.21.233.113   <none>        26379/TCP                      5m8s
-            redis-sentinel-west    ClusterIP   172.21.179.114   <none>        26379/TCP                      10m
-            redis-server-east      ClusterIP   172.21.17.63     <none>        6379/TCP                       5m18s
-            redis-server-north     ClusterIP   172.21.224.55    <none>        6379/TCP                       5m15s
-            redis-server-west      ClusterIP   172.21.3.180     <none>        6379/TCP                       10m
-      north: 
-        - run: kubectl get services
-          output: |
-            NAME                   TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                        AGE
-            redis-sentinel-east    ClusterIP   172.21.211.51    <none>        26379/TCP                      5m54s
-            redis-sentinel-north   ClusterIP   172.21.66.49     <none>        26379/TCP                      5m52s
-            redis-sentinel-west    ClusterIP   172.21.83.179    <none>        26379/TCP                      11m
-            redis-server-east      ClusterIP   172.21.54.164    <none>        6379/TCP                       6m2s
-            redis-server-north     ClusterIP   172.21.138.118   <none>        6379/TCP                       5m59s
-            redis-server-west      ClusterIP   172.21.224.110   <none>        6379/TCP                       11m
-  - title: Create Redis services on podman site
+        - run: kubectl apply -f ./declarative/north/listener-north.yaml
+        - run: kubectl apply -f ./declarative/north/connector-north.yaml
+
+  - title: Generate a link custom resource to connect your sites
     preamble: |
-      The podman site does not take part in exchange, service have to be created
+      Explain what is going on here
+    commands:
+      west:
+        - run: skupper link generate > ./declarative/link-to-west.yaml
+      east:
+        - run: skupper link generate > ./declarative/link-to-east.yaml
+      north:
+        - run: skupper link generate > ./declarative/link-to-north.yaml
+  - title: Activate links to create connections between sites
+    commands:
+      east: 
+        - run: kubectl apply -f ./declarative/link-to-west.yaml
+      north:
+        - run: kubectl apply -f ./declarative/link-to-west.yaml
+        - run: kubectl apply -f ./declarative/link-to-east.yaml
+  - title: Create Podman site
+    preamble: |
+      Use boostrap to take collection of yamls to create site
     commands: 
       podman-west:
-        - run: skupper service create redis-server-north 6379 --host-port 6379
-        - run: skupper service create redis-server-west 6379 --host-port 6380
-        - run: skupper service create redis-server-east 6379 --host-port 6381
-        - run: skupper service create redis-sentinel-north 26379 --host-port 26379
-        - run: skupper service create redis-sentinel-west 26379 --host-port 26380
-        - run: skupper service create redis-sentinel-east 26379 --host-port 26381
-        - run: skupper service status
-          output: |
-            Services exposed through Skupper:
-            ├─ redis-sentinel-east:26379 (tcp)
-            │  ╰─ Host ports:
-            │     ╰─ ip: * - ports: 26381 -> 26379
-            ├─ redis-sentinel-north:26379 (tcp)
-            │  ╰─ Host ports:
-            │     ╰─ ip: * - ports: 26379 -> 26379
-            ├─ redis-sentinel-west:26379 (tcp)
-            │  ╰─ Host ports:
-            │     ╰─ ip: * - ports: 26380 -> 26379
-            ├─ redis-server-east:6379 (tcp)
-            │  ╰─ Host ports:
-            │     ╰─ ip: * - ports: 6381 -> 6379
-            ├─ redis-server-north:6379 (tcp)
-            │  ╰─ Host ports:
-            │     ╰─ ip: * - ports: 6379 -> 6379
-            ╰─ redis-server-west:6379 (tcp)
-               ╰─ Host ports:
-                     ╰─ ip: * - ports: 6380 -> 6379
+        - run: /path/to/bootstrap ./declarative/podman
   - title: Use Redis command line interface to verify master status
     preamble: |
       Running the `redis-cli` from the podman-west site, attach to the Redis server
@@ -419,17 +304,13 @@ steps:
       following commands.
     commands:
       west:
-        - run: kubectl delete -f redis-west.yaml
-        - run: skupper delete
+        - run: kubectl delete ns west
       east:
-        - run: kubectl delete -f redis-east.yaml
-        - run: skupper delete
+        - run: kubectl delete ns east
       north: 
-        - run: kubectl delete -f wiki-getter.yaml
-        - run: kubectl delete -f redis-north.yaml
-        - run: skupper delete
+        - run: kubectl delete ns north
       podman-west:
-        - run: skupper delete
+        - run: /path/to/remove.sh podman
 summary: |
   This example locates the Redis Server and Sentinel services in different
   namespaces, on different clusters.  Ordinarily, this means that they

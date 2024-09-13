@@ -1,0 +1,17 @@
+apiVersion: skupper.io/v1alpha1
+kind: Connector
+metadata:
+  name: redis-server-north
+spec:
+  routingKey: redis-server-north
+  port: 6379
+  selector: application=redis-server
+---
+apiVersion: skupper.io/v1alpha1
+kind: Connector
+metadata:
+  name: redis-sentinel-north
+spec:
+  routingKey: redis-sentinel-north
+  port: 26379
+  selector: application=redis-sentinel  
