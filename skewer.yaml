@@ -125,29 +125,31 @@ steps:
         - run: kubectl apply -f ./north-crs/listener-north.yaml
         - run: kubectl apply -f ./north-crs/connector-north.yaml
 
-  - title: Generate a link custom resource to connect your sites
+  - title: Link your sites
     preamble: |
-      Explain what is going on here
+      A Skupper _link_ is a channel for communication between two sites.
+      Links serve as a transport for application connections.
+
+      Creating a link requires use of a `skupper` command to generate 
+      a link resource (with details and a secret token) and then activating 
+      the link via `kubectl apply` in the appropriate namespaces.
     commands:
       west:
         - run: skupper link generate > ./declarative/link-to-west.yaml
       east:
         - run: skupper link generate > ./declarative/link-to-east.yaml
-      north:
-        - run: skupper link generate > ./declarative/link-to-north.yaml
-  - title: Activate links to create connections between sites
-    commands:
-      east: 
         - run: kubectl apply -f ./declarative/link-to-west.yaml
       north:
+        - run: skupper link generate > ./declarative/link-to-north.yaml
         - run: kubectl apply -f ./declarative/link-to-west.yaml
         - run: kubectl apply -f ./declarative/link-to-east.yaml
   - title: Create Podman site
     preamble: |
-      Use boostrap to take collection of yamls to create site
+      A bootstrap script can be used to create a podman (non-kube) site
+      that instatiates the set of resources in the `declarative` directory
     commands: 
       podman-west:
-        - run: /path/to/bootstrap ./declarative/podman
+        - run: curl -s https://raw.githubusercontent.com/skupperproject/skupper/refs/heads/v2/cmd/bootstrap/bootstrap.sh | sh -s -- -p ./declarative
   - title: Use Redis command line interface to verify master status
     preamble: |
       Running the `redis-cli` from the podman-west site, attach to the Redis server
@@ -310,7 +312,7 @@ steps:
       north: 
         - run: kubectl delete ns north
       podman-west:
-        - run: /path/to/remove.sh podman
+        - run: curl -s https://raw.githubusercontent.com/skupperproject/skupper/refs/heads/v2/cmd/bootstrap/remove.sh | sh
 summary: |
   This example locates the Redis Server and Sentinel services in different
   namespaces, on different clusters.  Ordinarily, this means that they
