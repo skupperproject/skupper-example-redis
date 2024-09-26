@@ -21,16 +21,15 @@ across cloud providers, data centers, and edge sites.
 * [Step 5: Create your sites](#step-5-create-your-sites)
 * [Step 6: Deploy Redis Server and Sentinel](#step-6-deploy-redis-server-and-sentinel)
 * [Step 7: Expose Redis Server and Sentinel to Application Network](#step-7-expose-redis-server-and-sentinel-to-application-network)
-* [Step 8: Generate a link custom resource to connect your sites](#step-8-generate-a-link-custom-resource-to-connect-your-sites)
-* [Step 9: Activate links to create connections between sites](#step-9-activate-links-to-create-connections-between-sites)
-* [Step 10: Create Podman site](#step-10-create-podman-site)
-* [Step 11: Use Redis command line interface to verify master status](#step-11-use-redis-command-line-interface-to-verify-master-status)
-* [Step 12: Deploy the wiki-getter service](#step-12-deploy-the-wiki-getter-service)
-* [Step 13: Get Wiki content](#step-13-get-wiki-content)
-* [Step 14: Force Sentinel failover](#step-14-force-sentinel-failover)
-* [Step 15: Verify Wiki content](#step-15-verify-wiki-content)
-* [Step 16: Use Redis command line to measure latency of servers from each site](#step-16-use-redis-command-line-to-measure-latency-of-servers-from-each-site)
-* [Step 17: Cleaning up](#step-17-cleaning-up)
+* [Step 8: Link your sites](#step-8-link-your-sites)
+* [Step 9: Create Podman site](#step-9-create-podman-site)
+* [Step 10: Use Redis command line interface to verify master status](#step-10-use-redis-command-line-interface-to-verify-master-status)
+* [Step 11: Deploy the wiki-getter service](#step-11-deploy-the-wiki-getter-service)
+* [Step 12: Get Wiki content](#step-12-get-wiki-content)
+* [Step 13: Force Sentinel failover](#step-13-force-sentinel-failover)
+* [Step 14: Verify Wiki content](#step-14-verify-wiki-content)
+* [Step 15: Use Redis command line to measure latency of servers from each site](#step-15-use-redis-command-line-to-measure-latency-of-servers-from-each-site)
+* [Step 16: Cleaning up](#step-16-cleaning-up)
 * [Summary](#summary)
 * [Next steps](#next-steps)
 * [About this example](#about-this-example)
@@ -256,9 +255,14 @@ kubectl apply -f ./north-crs/listener-north.yaml
 kubectl apply -f ./north-crs/connector-north.yaml
 ~~~
 
-## Step 8: Generate a link custom resource to connect your sites
+## Step 8: Link your sites
 
-Explain what is going on here
+A Skupper _link_ is a channel for communication between two sites.
+Links serve as a transport for application connections.
+
+Creating a link requires use of a `skupper` command to generate 
+a link resource (with details and a secret token) and then activating 
+the link via `kubectl apply` in the appropriate namespaces.
 
 _**West:**_
 
@@ -270,40 +274,29 @@ _**East:**_
 
 ~~~ shell
 skupper link generate > ./declarative/link-to-east.yaml
+kubectl apply -f ./declarative/link-to-west.yaml
 ~~~
 
 _**North:**_
 
 ~~~ shell
 skupper link generate > ./declarative/link-to-north.yaml
-~~~
-
-## Step 9: Activate links to create connections between sites
-
-_**East:**_
-
-~~~ shell
-kubectl apply -f ./declarative/link-to-west.yaml
-~~~
-
-_**North:**_
-
-~~~ shell
 kubectl apply -f ./declarative/link-to-west.yaml
 kubectl apply -f ./declarative/link-to-east.yaml
 ~~~
 
-## Step 10: Create Podman site
+## Step 9: Create Podman site
 
-Use boostrap to take collection of yamls to create site
+A bootstrap script can be used to create a podman (non-kube) site
+that instatiates the set of resources in the `declarative` directory
 
 _**Podman West:**_
 
 ~~~ shell
-/path/to/bootstrap ./declarative/podman
+curl -s https://raw.githubusercontent.com/skupperproject/skupper/refs/heads/v2/cmd/bootstrap/bootstrap.sh | sh -s -- -p ./declarative
 ~~~
 
-## Step 11: Use Redis command line interface to verify master status
+## Step 10: Use Redis command line interface to verify master status
 
 Running the `redis-cli` from the podman-west site, attach to the Redis server
 and Sentinel to verfy that the redis-server-north is master.
@@ -337,7 +330,7 @@ $ 127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
 2) "6379"
 ~~~
 
-## Step 12: Deploy the wiki-getter service
+## Step 11: Deploy the wiki-getter service
 
 We will choose the north namespace to create a wiki-getter deployment
 and service. The client in the service will determine the 
@@ -358,7 +351,7 @@ deployment.apps/wiki-getter created
 service/wiki-getter created
 ~~~
 
-## Step 13: Get Wiki content
+## Step 12: Get Wiki content
 
 Use `curl` to send a request to querty the Wikipedia API via the 
 wiki-getter service. Note the *X-Response-Time* header for the initial
@@ -399,7 +392,7 @@ Connection: keep-alive
 Keep-Alive: timeout=5
 ~~~
 
-## Step 14: Force Sentinel failover
+## Step 13: Force Sentinel failover
 
 Using the Sentinel command, force a failover as if the master was not reachable. This
 will result in the promotion of one of the slave Redis servers to master role.
@@ -427,7 +420,7 @@ $ 127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
 
 Note that `redis-server-east` may have alternatively been elected master role.
 
-## Step 15: Verify Wiki content
+## Step 14: Verify Wiki content
 
 Check that cached content is correctly returned from new master.
 
@@ -452,7 +445,7 @@ Connection: keep-alive
 Keep-Alive: timeout=5
 ~~~
 
-## Step 16: Use Redis command line to measure latency of servers from each site
+## Step 15: Use Redis command line to measure latency of servers from each site
 
 To understand latency in a true multicloud scenario, the redis-cli can be used to
 measure the latency of a Redis server in milliseconds from any application network
@@ -545,7 +538,7 @@ $ redis-cli --latency -p 6381 --raw
 The sample period output is latency min, max, average over the number of samples. Note, that the sample
 outputs provided are actual measures across three public cloud locations (Washington DC, London, and Dallas)
 
-## Step 17: Cleaning up
+## Step 16: Cleaning up
 
 To remove Skupper and other resource from this exercise, use the
 following commands.
@@ -571,7 +564,7 @@ kubectl delete ns north
 _**Podman West:**_
 
 ~~~ shell
-/path/to/remove.sh podman
+curl -s https://raw.githubusercontent.com/skupperproject/skupper/refs/heads/v2/cmd/bootstrap/remove.sh | sh
 ~~~
 
 ## Summary
