@@ -1,4 +1,4 @@
-apiVersion: skupper.io/v1alpha1
+apiVersion: skupper.io/v2alpha1
 kind: Connector
 metadata:
   name: redis-server-east
@@ -7,7 +7,7 @@ spec:
   port: 6379
   selector: application=redis-server
 ---
-apiVersion: skupper.io/v1alpha1
+apiVersion: skupper.io/v2alpha1
 kind: Connector
 metadata:
   name: redis-sentinel-east
