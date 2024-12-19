@@ -21,15 +21,16 @@ across cloud providers, data centers, and edge sites.
 * [Step 5: Create your sites](#step-5-create-your-sites)
 * [Step 6: Deploy Redis Server and Sentinel](#step-6-deploy-redis-server-and-sentinel)
 * [Step 7: Expose Redis Server and Sentinel to Application Network](#step-7-expose-redis-server-and-sentinel-to-application-network)
-* [Step 8: Link your sites](#step-8-link-your-sites)
-* [Step 9: Create Podman site](#step-9-create-podman-site)
-* [Step 10: Use Redis command line interface to verify master status](#step-10-use-redis-command-line-interface-to-verify-master-status)
-* [Step 11: Deploy the wiki-getter service](#step-11-deploy-the-wiki-getter-service)
-* [Step 12: Get Wiki content](#step-12-get-wiki-content)
-* [Step 13: Force Sentinel failover](#step-13-force-sentinel-failover)
-* [Step 14: Verify Wiki content](#step-14-verify-wiki-content)
-* [Step 15: Use Redis command line to measure latency of servers from each site](#step-15-use-redis-command-line-to-measure-latency-of-servers-from-each-site)
-* [Step 16: Cleaning up](#step-16-cleaning-up)
+* [Step 8: Create podman site resource definitions](#step-8-create-podman-site-resource-definitions)
+* [Step 9: Link your sites](#step-9-link-your-sites)
+* [Step 10: Create Podman site](#step-10-create-podman-site)
+* [Step 11: Use Redis command line interface to verify master status](#step-11-use-redis-command-line-interface-to-verify-master-status)
+* [Step 12: Deploy the wiki-getter service](#step-12-deploy-the-wiki-getter-service)
+* [Step 13: Get Wiki content](#step-13-get-wiki-content)
+* [Step 14: Force Sentinel failover](#step-14-force-sentinel-failover)
+* [Step 15: Verify Wiki content](#step-15-verify-wiki-content)
+* [Step 16: Use Redis command line to measure latency of servers from each site](#step-16-use-redis-command-line-to-measure-latency-of-servers-from-each-site)
+* [Step 17: Cleaning up](#step-17-cleaning-up)
 * [Summary](#summary)
 * [Next steps](#next-steps)
 * [About this example](#about-this-example)
@@ -144,18 +145,7 @@ podman system service --time=0 unix://$XDG_RUNTIME_DIR/podman/podman.sock &
 _**West:**_
 
 ~~~ shell
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_access_grant_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_access_token_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_attached_connector_anchor_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_attached_connector_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_certificate_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_connector_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_link_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_listener_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_router_access_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_secured_access_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_site_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/deploy_cluster_scope.yaml
+kubectl apply -f https://github.com/skupperproject/skupper/releases/download/2.0.0-preview-2/skupper-setup-cluster-scope.yaml
 ~~~
 
 ## Step 5: Create your sites
@@ -177,18 +167,21 @@ _**West:**_
 
 ~~~ shell
 kubectl apply -f ./west-crs/site-west.yaml
+kubectl wait --for condition=Ready --timeout=60s site/west
 ~~~
 
 _**East:**_
 
 ~~~ shell
 kubectl apply -f ./east-crs/site-east.yaml
+kubectl wait --for condition=Ready --timeout=60s site/east
 ~~~
 
 _**North:**_
 
 ~~~ shell
 kubectl apply -f ./north-crs/site-north.yaml
+kubectl wait --for condition=Ready --timeout=60s site/north
 ~~~
 
 As you move through the steps below, you can use `kubectl get` at
@@ -255,48 +248,68 @@ kubectl apply -f ./north-crs/listener-north.yaml
 kubectl apply -f ./north-crs/connector-north.yaml
 ~~~
 
-## Step 8: Link your sites
+## Step 8: Create podman site resource definitions
+
+A podman site will attach to the kubernetes west site to enable
+the redis cli to access the server and sentinel deployments. This
+will be enabled by defining a site resource and the collection of
+listener resources that will map host and ports onto the services
+provided on the kubernetes clusters.
+
+The resources will be input in the default namespace location
+for the current user:
+
+`~/.local/share/skupper/namespaces/default/input/sources/`
+
+_**Podman West:**_
+
+~~~ shell
+./podman-crs/setup-resources.sh
+~~~
+
+## Step 9: Link your sites
 
 A Skupper _link_ is a channel for communication between two sites.
 Links serve as a transport for application connections.
 
-Creating a link requires use of a `skupper` command to generate 
-a link resource (with details and a secret token) and then activating 
-the link via `kubectl apply` in the appropriate namespaces.
+Creating a link requires use of a `skupper token issue` command to generate
+an access token resource (with details and a secret token) and then activating
+the link via `skupper token redeem` in the appropriate namespaces.
 
 _**West:**_
 
 ~~~ shell
-skupper link generate > ./declarative/link-to-west.yaml
+skupper token issue ~/link-to-west.yaml --redemptions-allowed 2
+skupper token issue ~/.local/share/skupper/namespaces/default/input/sources/link-to-west.yaml
 ~~~
 
 _**East:**_
 
 ~~~ shell
-skupper link generate > ./declarative/link-to-east.yaml
-kubectl apply -f ./declarative/link-to-west.yaml
+skupper token issue .~/link-to-east.yaml
+skupper token redeem ~/link-to-west.yaml
 ~~~
 
 _**North:**_
 
 ~~~ shell
-skupper link generate > ./declarative/link-to-north.yaml
-kubectl apply -f ./declarative/link-to-west.yaml
-kubectl apply -f ./declarative/link-to-east.yaml
+skupper token redeem ~/link-to-west.yaml
+skupper token redeem ~/link-to-east.yaml
 ~~~
 
-## Step 9: Create Podman site
+## Step 10: Create Podman site
 
-A bootstrap script can be used to create a podman (non-kube) site
-that instatiates the set of resources in the `declarative` directory
+The skupper cli can be used to create a podman (non-kube) site
+that instatiates the set of resources in the
+`~/.local/share/skupper/namespaces/default/input/sources` directory.
 
 _**Podman West:**_
 
 ~~~ shell
-curl -s https://raw.githubusercontent.com/skupperproject/skupper/refs/heads/v2/cmd/bootstrap/bootstrap.sh | sh -s -- -p ./declarative
+skupper system setup --path ~/.local/share/skupper/namespaces/default/input/sources
 ~~~
 
-## Step 10: Use Redis command line interface to verify master status
+## Step 11: Use Redis command line interface to verify master status
 
 Running the `redis-cli` from the podman-west site, attach to the Redis server
 and Sentinel to verfy that the redis-server-north is master.
@@ -330,7 +343,7 @@ $ 127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
 2) "6379"
 ~~~
 
-## Step 11: Deploy the wiki-getter service
+## Step 12: Deploy the wiki-getter service
 
 We will choose the north namespace to create a wiki-getter deployment
 and service. The client in the service will determine the 
@@ -351,7 +364,7 @@ deployment.apps/wiki-getter created
 service/wiki-getter created
 ~~~
 
-## Step 12: Get Wiki content
+## Step 13: Get Wiki content
 
 Use `curl` to send a request to querty the Wikipedia API via the 
 wiki-getter service. Note the *X-Response-Time* header for the initial
@@ -392,7 +405,7 @@ Connection: keep-alive
 Keep-Alive: timeout=5
 ~~~
 
-## Step 13: Force Sentinel failover
+## Step 14: Force Sentinel failover
 
 Using the Sentinel command, force a failover as if the master was not reachable. This
 will result in the promotion of one of the slave Redis servers to master role.
@@ -420,7 +433,7 @@ $ 127.0.0.1:26379> sentinel get-master-addr-by-name redis-skupper
 
 Note that `redis-server-east` may have alternatively been elected master role.
 
-## Step 14: Verify Wiki content
+## Step 15: Verify Wiki content
 
 Check that cached content is correctly returned from new master.
 
@@ -445,7 +458,7 @@ Connection: keep-alive
 Keep-Alive: timeout=5
 ~~~
 
-## Step 15: Use Redis command line to measure latency of servers from each site
+## Step 16: Use Redis command line to measure latency of servers from each site
 
 To understand latency in a true multicloud scenario, the redis-cli can be used to
 measure the latency of a Redis server in milliseconds from any application network
@@ -538,7 +551,7 @@ $ redis-cli --latency -p 6381 --raw
 The sample period output is latency min, max, average over the number of samples. Note, that the sample
 outputs provided are actual measures across three public cloud locations (Washington DC, London, and Dallas)
 
-## Step 16: Cleaning up
+## Step 17: Cleaning up
 
 To remove Skupper and other resource from this exercise, use the
 following commands.
@@ -564,7 +577,7 @@ kubectl delete ns north
 _**Podman West:**_
 
 ~~~ shell
-curl -s https://raw.githubusercontent.com/skupperproject/skupper/refs/heads/v2/cmd/bootstrap/remove.sh | sh
+skupper system teardown
 ~~~
 
 ## Summary

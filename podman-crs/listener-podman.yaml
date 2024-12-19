@@ -3,6 +3,7 @@ apiVersion: skupper.io/v2alpha1
 kind: Listener
 metadata:
   name: redis-server-east
+  namespace: default
 spec:
   routingKey: redis-server-east
   port: 6381
@@ -12,6 +13,7 @@ apiVersion: skupper.io/v2alpha1
 kind: Listener
 metadata:
   name: redis-sentinel-east
+  namespace: default
 spec:
   routingKey: redis-sentinel-east
   port: 26381
@@ -21,6 +23,7 @@ apiVersion: skupper.io/v2alpha1
 kind: Listener
 metadata:
   name: redis-server-west
+  namespace: default
 spec:
   routingKey: redis-server-west
   port: 6380
@@ -30,6 +33,7 @@ apiVersion: skupper.io/v2alpha1
 kind: Listener
 metadata:
   name: redis-sentinel-west
+  namespace: default
 spec:
   routingKey: redis-sentinel-west
   port: 26380
@@ -39,6 +43,7 @@ apiVersion: skupper.io/v2alpha1
 kind: Listener
 metadata:
   name: redis-server-north
+  namespace: default
 spec:
   routingKey: redis-server-north
   port: 6379
@@ -48,6 +53,7 @@ apiVersion: skupper.io/v2alpha1
 kind: Listener
 metadata:
   name: redis-sentinel-north
+  namespace: default
 spec:
   routingKey: redis-sentinel-north
   port: 26379
