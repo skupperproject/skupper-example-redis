@@ -259,7 +259,7 @@ provided on the kubernetes clusters.
 The resources will be input in the default namespace location
 for the current user:
 
-`~/.local/share/skupper/namespaces/default/input/sources/`
+`~/.local/share/skupper/namespaces/default/input/resources/`
 
 _**Podman West:**_
 
@@ -280,7 +280,7 @@ _**West:**_
 
 ~~~ shell
 skupper token issue ~/link-to-west.yaml --redemptions-allowed 2
-skupper token issue ~/.local/share/skupper/namespaces/default/input/sources/link-to-west.yaml
+skupper token issue ~/.local/share/skupper/namespaces/default/input/resources/link-to-west.yaml
 ~~~
 
 _**East:**_
@@ -301,12 +301,12 @@ skupper token redeem ~/link-to-east.yaml
 
 The skupper cli can be used to create a podman (non-kube) site
 that instatiates the set of resources in the
-`~/.local/share/skupper/namespaces/default/input/sources` directory.
+`~/.local/share/skupper/namespaces/default/input/resources` directory.
 
 _**Podman West:**_
 
 ~~~ shell
-skupper system setup --path ~/.local/share/skupper/namespaces/default/input/sources
+skupper system setup --path ~/.local/share/skupper/namespaces/default/input/resources
 ~~~
 
 ## Step 11: Use Redis command line interface to verify master status
