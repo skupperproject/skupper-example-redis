@@ -127,7 +127,7 @@ steps:
       The resources will be input in the default namespace location
       for the current user:
 
-      `~/.local/share/skupper/namespaces/default/input/sources/`
+      `~/.local/share/skupper/namespaces/default/input/resources/`
     commands:
       podman-west:
         - run: ./podman-crs/setup-resources.sh
@@ -142,7 +142,7 @@ steps:
     commands:
       west:
         - run: skupper token issue ~/link-to-west.yaml --redemptions-allowed 2
-        - run: skupper token issue ~/.local/share/skupper/namespaces/default/input/sources/link-to-west.yaml
+        - run: skupper token issue ~/.local/share/skupper/namespaces/default/input/resources/link-to-west.yaml
       east:
         - run: skupper token issue .~/link-to-east.yaml
         - run: skupper token redeem ~/link-to-west.yaml
@@ -153,10 +153,10 @@ steps:
     preamble: |
       The skupper cli can be used to create a podman (non-kube) site
       that instatiates the set of resources in the
-      `~/.local/share/skupper/namespaces/default/input/sources` directory.
+      `~/.local/share/skupper/namespaces/default/input/resources` directory.
     commands: 
       podman-west:
-        - run: skupper system setup --path ~/.local/share/skupper/namespaces/default/input/sources
+        - run: skupper system setup --path ~/.local/share/skupper/namespaces/default/input/resources
   - title: Use Redis command line interface to verify master status
     preamble: |
       Running the `redis-cli` from the podman-west site, attach to the Redis server
