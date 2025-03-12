@@ -52,6 +52,11 @@ With Skupper, you can place the Redis primary server in one cluster and
 the replica servers in alternative clusters without requiring that
 the servers be exposed to the public internet.
 
+**Note:** This example is intended for the Skupper v2 version. The
+example for use with the v1 version can be found [here][v1-example]:
+
+[v1-example]: https://github.com/skupperproject/skupper-example-redis/blob/v1/README.md
+
 ## Step 1: Install the Skupper command-line tool
 
 This example uses the Skupper command-line tool to deploy Skupper.
@@ -145,7 +150,7 @@ podman system service --time=0 unix://$XDG_RUNTIME_DIR/podman/podman.sock &
 _**West:**_
 
 ~~~ shell
-kubectl apply -f https://github.com/skupperproject/skupper/releases/download/2.0.0-preview-2/skupper-setup-cluster-scope.yaml
+kubectl kustomize https://github.com/skupperproject/skupper/config/default/cluster/ | kubectl apply -f -
 ~~~
 
 ## Step 5: Create your sites
@@ -259,7 +264,7 @@ provided on the kubernetes clusters.
 The resources will be input in the default namespace location
 for the current user:
 
-`~/.local/share/skupper/namespaces/default/input/sources/`
+`~/.local/share/skupper/namespaces/default/input/resources/`
 
 _**Podman West:**_
 
@@ -280,13 +285,13 @@ _**West:**_
 
 ~~~ shell
 skupper token issue ~/link-to-west.yaml --redemptions-allowed 2
-skupper token issue ~/.local/share/skupper/namespaces/default/input/sources/link-to-west.yaml
+skupper token issue ~/.local/share/skupper/namespaces/default/input/resources/link-to-west.yaml
 ~~~
 
 _**East:**_
 
 ~~~ shell
-skupper token issue .~/link-to-east.yaml
+skupper token issue ~/link-to-east.yaml
 skupper token redeem ~/link-to-west.yaml
 ~~~
 
@@ -301,12 +306,12 @@ skupper token redeem ~/link-to-east.yaml
 
 The skupper cli can be used to create a podman (non-kube) site
 that instatiates the set of resources in the
-`~/.local/share/skupper/namespaces/default/input/sources` directory.
+`~/.local/share/skupper/namespaces/default/input/resources` directory.
 
 _**Podman West:**_
 
 ~~~ shell
-skupper system setup --path ~/.local/share/skupper/namespaces/default/input/sources
+skupper system setup --path ~/.local/share/skupper/namespaces/default/input/resources
 ~~~
 
 ## Step 11: Use Redis command line interface to verify master status
