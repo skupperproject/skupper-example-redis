@@ -52,6 +52,11 @@ With Skupper, you can place the Redis primary server in one cluster and
 the replica servers in alternative clusters without requiring that
 the servers be exposed to the public internet.
 
+**Note:** This example is intended for the Skupper v2 version. The
+example for use with the v1 version can be found [here][v1-example]:
+
+[v1-example]: https://github.com/skupperproject/skupper-example-redis/blob/v1/README.md
+
 ## Step 1: Install the Skupper command-line tool
 
 This example uses the Skupper command-line tool to deploy Skupper.
@@ -145,7 +150,7 @@ podman system service --time=0 unix://$XDG_RUNTIME_DIR/podman/podman.sock &
 _**West:**_
 
 ~~~ shell
-kubectl apply -f https://github.com/skupperproject/skupper/releases/download/2.0.0-preview-2/skupper-setup-cluster-scope.yaml
+kubectl kustomize https://github.com/skupperproject/skupper/config/default/cluster/ | kubectl apply -f -
 ~~~
 
 ## Step 5: Create your sites
@@ -286,7 +291,7 @@ skupper token issue ~/.local/share/skupper/namespaces/default/input/resources/li
 _**East:**_
 
 ~~~ shell
-skupper token issue .~/link-to-east.yaml
+skupper token issue ~/link-to-east.yaml
 skupper token redeem ~/link-to-west.yaml
 ~~~
 

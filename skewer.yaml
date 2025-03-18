@@ -16,6 +16,11 @@ overview: |
   With Skupper, you can place the Redis primary server in one cluster and 
   the replica servers in alternative clusters without requiring that
   the servers be exposed to the public internet.
+
+  **Note:** This example is intended for the Skupper v2 version. The
+  example for use with the v1 version can be found [here][v1-example]:
+
+  [v1-example]: https://github.com/skupperproject/skupper-example-redis/blob/v1/README.md
 prerequisites:
 sites:
   west:
@@ -48,7 +53,7 @@ steps:
   - title: Install the Skupper controller
     commands:
       "west":
-        - run: kubectl apply -f https://github.com/skupperproject/skupper/releases/download/2.0.0-preview-2/skupper-setup-cluster-scope.yaml
+        - run: kubectl kustomize https://github.com/skupperproject/skupper/config/default/cluster/ | kubectl apply -f -
   - title: Create your sites
     preamble: |
       A Skupper _site_ is a location where components of your
@@ -144,7 +149,7 @@ steps:
         - run: skupper token issue ~/link-to-west.yaml --redemptions-allowed 2
         - run: skupper token issue ~/.local/share/skupper/namespaces/default/input/resources/link-to-west.yaml
       east:
-        - run: skupper token issue .~/link-to-east.yaml
+        - run: skupper token issue ~/link-to-east.yaml
         - run: skupper token redeem ~/link-to-west.yaml
       north:
         - run: skupper token redeem ~/link-to-west.yaml
