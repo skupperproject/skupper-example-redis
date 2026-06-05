@@ -150,7 +150,7 @@ podman system service --time=0 unix://$XDG_RUNTIME_DIR/podman/podman.sock &
 _**West:**_
 
 ~~~ shell
-kubectl kustomize https://github.com/skupperproject/skupper/config/default/cluster/ | kubectl apply -f -
+kubectl apply -f https://skupper.io/install.yaml
 ~~~
 
 ## Step 5: Create your sites
