@@ -121,28 +121,16 @@ kubectl config set-context --current --namespace north
 
 ## Step 3: Set up your Podman environment
 
-Open a new terminal window and set the `SKUPPER_PLATFORM`
-environment variable to `podman`.  This sets the Skupper platform
-to Podman for this terminal session.
+Open a new terminal window and use the Skupper CLI to install the system controller component for Podman.
 
-Use `podman network create` to create the Podman network that
-Skupper will use.
-
-Use `systemctl` to enable the Podman API service.
+> **Note:** This step requires a Linux environment. The `skupper --platform podman system install`
+> command depends on `systemctl` to enable the Podman API service, which is not available on Mac or
+> Windows. If you are on a non-Linux machine, use a Linux VM to run all Podman-related steps.
 
 _**Podman West:**_
 
 ~~~ shell
-export SKUPPER_PLATFORM=podman
-podman network create skupper
-systemctl --user enable --now podman.socket
-~~~
-
-If the `systemctl` command doesn't work, you can try the `podman
-system service` command instead:
-
-~~~
-podman system service --time=0 unix://$XDG_RUNTIME_DIR/podman/podman.sock &
+skupper --platform podman system install
 ~~~
 
 ## Step 4: Install the Skupper controller
@@ -261,15 +249,10 @@ will be enabled by defining a site resource and the collection of
 listener resources that will map host and ports onto the services
 provided on the kubernetes clusters.
 
-The resources will be input in the default namespace location
-for the current user:
-
-`~/.local/share/skupper/namespaces/default/input/resources/`
-
 _**Podman West:**_
-
 ~~~ shell
-./podman-crs/setup-resources.sh
+skupper --platform podman system apply -f ./podman-crs/site-podman.yaml
+skupper --platform podman system apply -f ./podman-crs/listener-podman.yaml
 ~~~
 
 ## Step 9: Link your sites
@@ -282,21 +265,19 @@ an access token resource (with details and a secret token) and then activating
 the link via `skupper token redeem` in the appropriate namespaces.
 
 _**West:**_
-
 ~~~ shell
 skupper token issue ~/link-to-west.yaml --redemptions-allowed 2
-skupper token issue ~/.local/share/skupper/namespaces/default/input/resources/link-to-west.yaml
+skupper link generate > ~/link-to-podman.yaml
+skupper --platform podman system apply -f ~/link-to-podman.yaml
 ~~~
 
 _**East:**_
-
 ~~~ shell
 skupper token issue ~/link-to-east.yaml
 skupper token redeem ~/link-to-west.yaml
 ~~~
 
 _**North:**_
-
 ~~~ shell
 skupper token redeem ~/link-to-west.yaml
 skupper token redeem ~/link-to-east.yaml
@@ -304,14 +285,12 @@ skupper token redeem ~/link-to-east.yaml
 
 ## Step 10: Create Podman site
 
-The skupper cli can be used to create a podman (non-kube) site
-that instatiates the set of resources in the
-`~/.local/share/skupper/namespaces/default/input/resources` directory.
+The skupper cli can be used to start a podman (non-kube) site that
+instantiates the set of resources applied to the input resources directory.
 
 _**Podman West:**_
-
 ~~~ shell
-skupper system setup --path ~/.local/share/skupper/namespaces/default/input/resources
+skupper --platform podman system start
 ~~~
 
 ## Step 11: Use Redis command line interface to verify master status
@@ -582,7 +561,7 @@ kubectl delete ns north
 _**Podman West:**_
 
 ~~~ shell
-skupper system teardown
+skupper system stop
 ~~~
 
 ## Summary
